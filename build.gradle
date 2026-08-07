@@ -1,0 +1,125 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// Which implementation the spec runs against.  Default is the class you are
+// fixing; the interviewer uses -Pimpl=PriceAggregatorFixed to check the answer.
+def implName = project.findProperty('impl') ?: 'PriceAggregator'
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'impl', implName
+
+    // The allocation rules measure real numbers: keep the test JVM to itself.
+    maxParallelForks = 1
+    forkEvery = 0
+    outputs.upToDateWhen { false }
+
+    testLogging {
+        // All per-test output is produced by the afterTest hook below, so that
+        // the PASS/FAIL line and its assertion message stay together and read
+        // the same as `./gradlew spec`.
+        events = []
+        showStandardStreams = false
+        showExceptions = false
+        showCauses = false
+        showStackTraces = false
+    }
+
+    // Gradle also reports failures at ERROR level, which would duplicate the
+    // lines printed above. Silence every level; afterTest is the only reporter.
+    org.gradle.api.logging.LogLevel.values().each { level ->
+        testLogging.get(level).with {
+            events = []
+            showExceptions = false
+            showCauses = false
+            showStackTraces = false
+        }
+    }
+
+    def core = new java.util.concurrent.atomic.AtomicInteger()
+    def corePassed = new java.util.concurrent.atomic.AtomicInteger()
+    def stretch = new java.util.concurrent.atomic.AtomicInteger()
+    def stretchPassed = new java.util.concurrent.atomic.AtomicInteger()
+
+    afterTest { desc, result ->
+        String name = desc.displayName ?: desc.name
+        boolean ok = result.resultType == TestResult.ResultType.SUCCESS
+        if (name.startsWith('CORE')) {
+            core.incrementAndGet()
+            if (ok) corePassed.incrementAndGet()
+        } else if (name.startsWith('STRETCH')) {
+            stretch.incrementAndGet()
+            if (ok) stretchPassed.incrementAndGet()
+        }
+        println (ok ? "[PASS] ${name}" : "[FAIL] ${name}")
+        if (!ok) {
+            def ex = result.exceptions ? result.exceptions[0] : null
+            String msg = ex?.message ?: ex?.toString()
+            if (msg) {
+                msg.readLines().each { println '       ' + it.trim() }
+            }
+        }
+    }
+
+    afterSuite { desc, result ->
+        if (desc.parent != null) return
+        println ''
+        println '----------------------------------------------------------------'
+        println "CORE     ${corePassed.get()} / ${core.get()} passed"
+        println "STRETCH  ${stretchPassed.get()} / ${stretch.get()} passed"
+        println '----------------------------------------------------------------'
+        if (core.get() == 0 && stretch.get() == 0) {
+            println 'NO SPEC TESTS RAN. This is a build or test-discovery problem, not a pass.'
+            println 'Check that src/test/java/etrading/SpecTests.java compiled and that its'
+            println 'display names still start with CORE / STRETCH.'
+        } else if (corePassed.get() < core.get()) {
+            println 'Core rules are still violated. SPEC.md says what each rule requires.'
+        } else if (stretchPassed.get() < stretch.get()) {
+            println 'All core rules satisfied. Stretch rules remain.'
+        } else {
+            println 'All rules satisfied.'
+        }
+        println ''
+    }
+}
+
+// Run the spec with no dependencies at all - useful if you cannot reach
+// Maven Central, or if you just want the plain console report.
+tasks.register('spec', JavaExec) {
+    group = 'verification'
+    description = 'Runs SPEC.md checks directly, without JUnit.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'etrading.SpecChecks'
+    systemProperty 'impl', implName
+    ignoreExitValue = true
+}
+
+// Optional load generator: latency percentiles, allocation and GC.
+//   ./gradlew harness --args="PriceAggregator 200000 8"
+tasks.register('harness', JavaExec) {
+    group = 'verification'
+    description = 'Replays a synthetic market data feed and reports latency and allocation.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'etrading.MarketDataHarness'
+    systemProperty 'impl', implName
+}

@@ -1,0 +1,22 @@
+# Build output
+build/
+out/
+bin/
+.gradle/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Safety net: the reference solution must never be committed to this repo.
+**/PriceAggregatorFixed.java
