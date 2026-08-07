@@ -35,8 +35,7 @@ patching them one at a time. Rule 7 is a performance rule rather than a
 behavioural one, and it will not go green by accident.
 
 Please **think out loud**: how you decide what to do first matters more here than
-how much you finish. You are welcome to use your usual AI tooling — if you do,
-narrate what you are asking it and how you are checking what comes back.
+how much you finish.
 
 ## Layout
 

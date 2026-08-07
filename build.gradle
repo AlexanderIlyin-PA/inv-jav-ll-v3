@@ -17,17 +17,12 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
-// Which implementation the spec runs against.  Default is the class you are
-// fixing; the interviewer uses -Pimpl=PriceAggregatorFixed to check the answer.
-def implName = project.findProperty('impl') ?: 'PriceAggregator'
-
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
 test {
     useJUnitPlatform()
-    systemProperty 'impl', implName
 
     // The allocation rules measure real numbers: keep the test JVM to itself.
     maxParallelForks = 1
@@ -110,7 +105,6 @@ tasks.register('spec', JavaExec) {
     description = 'Runs SPEC.md checks directly, without JUnit.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'etrading.SpecChecks'
-    systemProperty 'impl', implName
     ignoreExitValue = true
 }
 
@@ -121,5 +115,4 @@ tasks.register('harness', JavaExec) {
     description = 'Replays a synthetic market data feed and reports latency and allocation.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'etrading.MarketDataHarness'
-    systemProperty 'impl', implName
 }

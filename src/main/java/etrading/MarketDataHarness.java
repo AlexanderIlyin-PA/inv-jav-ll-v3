@@ -10,10 +10,8 @@ import java.util.Arrays;
  *
  * Usage:
  *   ./gradlew harness --args="200000 10"
- *   ./gradlew harness -Pimpl=PriceAggregatorFixed --args="200000 10"
  *
- * Arguments are [quotesPerSecond] [seconds]; the implementation is chosen with
- * -Pimpl=<ClassName> (default PriceAggregator), the same switch the spec uses.
+ * Arguments are [quotesPerSecond] [seconds].
  *
  * Latency measured here is: (time the listener sees the update) minus
  * (time the quote was handed to onQuote). That is the aggregator's contribution
@@ -41,11 +39,10 @@ public final class MarketDataHarness {
     private static double sink;
 
     public static void main(String[] args) throws Exception {
-        String impl = System.getProperty("impl", "PriceAggregator");
         int rate = args.length > 0 ? Integer.parseInt(args[0]) : 200_000;
         int seconds = args.length > 1 ? Integer.parseInt(args[1]) : 10;
 
-        PriceAggregatorApi aggregator = create(impl);
+        PriceAggregatorApi aggregator = new PriceAggregator();
 
         aggregator.addListener(new QuoteListener() {
             @Override
@@ -58,7 +55,7 @@ public final class MarketDataHarness {
             }
         });
 
-        System.out.println("impl=" + impl + "  rate=" + rate + "/s  duration=" + seconds + "s");
+        System.out.println("rate=" + rate + "/s  duration=" + seconds + "s");
         System.out.println("jvm=" + System.getProperty("java.vm.name")
                 + " " + System.getProperty("java.version"));
         System.out.println();
@@ -95,13 +92,6 @@ public final class MarketDataHarness {
         aggregator.stop();
         System.out.println("(sink=" + (long) sink + ")");
         System.exit(0);
-    }
-
-    private static PriceAggregatorApi create(String impl) throws Exception {
-        // Loaded reflectively so the harness still compiles when only the
-        // implementation under test is present.
-        return (PriceAggregatorApi) Class.forName("etrading." + impl)
-                .getDeclaredConstructor().newInstance();
     }
 
     /** Paced replay: emits {@code rate} quotes per second for {@code seconds}. */

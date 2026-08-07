@@ -24,9 +24,6 @@ import java.util.function.BooleanSupplier;
  * <p>Every check is deterministic. Timing is driven by the {@code tsNanos} values
  * supplied by the checks themselves, never by the wall clock, so results do not
  * depend on how fast the machine is.
- *
- * <p>Select an implementation with {@code -Pimpl=<ClassName>}; the default is
- * {@code PriceAggregator}.
  */
 public final class SpecChecks {
 
@@ -42,10 +39,6 @@ public final class SpecChecks {
     private static double bytesPerQuote = -1;
 
     private SpecChecks() {
-    }
-
-    static String implName() {
-        return System.getProperty("impl", "PriceAggregator");
     }
 
     // =========================================================== the nine rules
@@ -264,9 +257,8 @@ public final class SpecChecks {
 
     // ================================================================= support
 
-    static PriceAggregatorApi newAggregator() throws Exception {
-        return (PriceAggregatorApi) Class.forName("etrading." + implName())
-                .getDeclaredConstructor().newInstance();
+    static PriceAggregatorApi newAggregator() {
+        return new PriceAggregator();
     }
 
     static boolean awaitTrue(BooleanSupplier condition, long timeoutMs) {
@@ -357,9 +349,6 @@ public final class SpecChecks {
     }
 
     public static void main(String[] args) {
-        if (args.length > 0) {
-            System.setProperty("impl", args[0]);
-        }
         Map<String, Check> core = new LinkedHashMap<>();
         core.put("1. best bid is the highest bid across all LPs",
                 SpecChecks::bestBidIsHighestAcrossLps);
@@ -382,7 +371,7 @@ public final class SpecChecks {
         stretch.put("9. hot path allocates essentially nothing (under 2 bytes/quote)",
                 SpecChecks::hotPathAllocatesEssentiallyNothing);
 
-        System.out.println("Checking etrading." + implName() + " against SPEC.md");
+        System.out.println("Checking etrading.PriceAggregator against SPEC.md");
         System.out.println();
         int corePassed = runAll(core);
         int stretchPassed = runAll(stretch);
