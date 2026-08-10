@@ -19,16 +19,6 @@ import java.util.Arrays;
  */
 public final class MarketDataHarness {
 
-    private static final String[] SYMBOLS = {
-            "EURUSD", "GBPUSD", "USDJPY", "USDCHF",
-            "AUDUSD", "USDCAD", "XAUUSD", "XAGUSD"
-    };
-
-    private static final String[] LPS = {
-            "LP-ALPHA", "LP-BRAVO", "LP-CHARLIE",
-            "LP-DELTA", "LP-ECHO", "LP-FOXTROT"
-    };
-
     private static final int MAX_SAMPLES = 8_000_000;
 
     private static final long[] SAMPLES = new long[MAX_SAMPLES];
@@ -105,10 +95,7 @@ public final class MarketDataHarness {
             while (System.nanoTime() < due) {
                 Thread.onSpinWait();
             }
-            String symbol = SYMBOLS[(int) (i % SYMBOLS.length)];
-            String lp = LPS[(int) ((i / SYMBOLS.length) % LPS.length)];
-            double mid = 1.08500d + ((i % 200) * 0.00001d);
-            aggregator.onQuote(symbol, lp, mid - 0.00005d, mid + 0.00005d, System.nanoTime());
+            SyntheticFeed.send(aggregator, i, System.nanoTime());
         }
         return total;
     }
@@ -130,6 +117,10 @@ public final class MarketDataHarness {
 
         System.out.println("--- aggregator latency (microseconds) --------------");
         System.out.printf("samples             %,d%n", used.length);
+        if (used.length == 0) {
+            System.out.println("NO LATENCY SAMPLES: nothing was published, so the figures below");
+            System.out.println("are zero for lack of data, not because anything was fast.");
+        }
         System.out.printf("p50                 %10.1f%n", micros(percentile(used, 50.0)));
         System.out.printf("p90                 %10.1f%n", micros(percentile(used, 90.0)));
         System.out.printf("p99                 %10.1f%n", micros(percentile(used, 99.0)));

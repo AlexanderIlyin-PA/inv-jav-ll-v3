@@ -182,9 +182,6 @@ public final class SpecChecks {
         if (bytesPerQuote >= 0) {
             return bytesPerQuote;
         }
-        final String[] symbols = {"EURUSD", "GBPUSD", "USDJPY", "USDCHF",
-                                  "AUDUSD", "USDCAD", "XAUUSD", "XAGUSD"};
-        final String[] lps = {"LP-A", "LP-B", "LP-C", "LP-D", "LP-E", "LP-F"};
         final int warmup = 50_000;
         final int measured = 200_000;
 
@@ -196,12 +193,12 @@ public final class SpecChecks {
         PriceAggregatorApi agg = newAggregator();
         agg.start();
         try {
-            feed(agg, symbols, lps, warmup, T0);
+            feed(agg, 0, warmup, T0);
             Thread.sleep(1_000L);
 
             long[] ids = ownedThreadIds(preExisting);
             long before = allocatedBytes(ids);
-            feed(agg, symbols, lps, measured, T0 + 10 * SECOND);
+            feed(agg, warmup, measured, T0 + 10 * SECOND);
             Thread.sleep(1_500L);
             long after = allocatedBytes(ownedThreadIds(preExisting));
 
@@ -230,13 +227,9 @@ public final class SpecChecks {
     }
 
     /** Allocation-free feed loop, so we measure the aggregator and not the check. */
-    private static void feed(PriceAggregatorApi agg, String[] symbols, String[] lps,
-                             int count, long baseTs) {
+    private static void feed(PriceAggregatorApi agg, long from, int count, long baseTs) {
         for (int i = 0; i < count; i++) {
-            String symbol = symbols[i % symbols.length];
-            String lp = lps[(i / symbols.length) % lps.length];
-            double mid = 1.08500d + ((i % 200) * 0.00001d);
-            agg.onQuote(symbol, lp, mid - 0.00005d, mid + 0.00005d, baseTs + i * 1_000L);
+            SyntheticFeed.send(agg, from + i, baseTs + i * 1_000L);
         }
     }
 

@@ -1,0 +1,12 @@
+# Normalise line endings so the repo stays LF regardless of who edits it.
+# Without this, a Windows editor re-saving a file produces a whole-file diff.
+* text=auto eol=lf
+
+# Windows batch files must keep CRLF or cmd.exe misbehaves.
+*.bat text eol=crlf
+
+# The Gradle wrapper is a shell script: LF, always.
+gradlew text eol=lf
+
+# Never touch binaries.
+*.jar binary
