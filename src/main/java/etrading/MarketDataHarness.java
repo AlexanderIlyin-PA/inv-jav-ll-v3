@@ -201,6 +201,10 @@ public final class MarketDataHarness {
         long runNumber = previous.nextRunNumber();
         String startedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
 
+        // Before the aggregator exists, so its threads can be told apart from the
+        // JVM's own. Must stay immediately above the constructor.
+        snapshotThreads();
+
         PriceAggregatorApi aggregator = new PriceAggregator();
 
         aggregator.addListener(new QuoteListener() {
@@ -275,7 +279,8 @@ public final class MarketDataHarness {
         slowCallbacksBefore = slowCallbacks;
         long gcCountBefore = gcCount();
         long gcTimeBefore = gcTimeMillis();
-        long allocBefore = allocatedBytes();
+        long feederAllocBefore = feederAllocatedBytes();
+        long aggAllocBefore = aggregatorAllocatedBytes();
         long wallBefore = System.nanoTime();
 
         processedBaseline = processedBefore;
@@ -290,7 +295,12 @@ public final class MarketDataHarness {
         long wallAfter = System.nanoTime();
         // Give the consumer a moment to drain any backlog.
         Thread.sleep(1000);
-        long allocAfter = allocatedBytes();
+        long feederAllocAfter = feederAllocatedBytes();
+        long aggAllocAfter = aggregatorAllocatedBytes();
+        long allocBefore = feederAllocBefore + aggAllocBefore;
+        long allocAfter = feederAllocAfter + aggAllocAfter;
+        long feederAlloc = feederAllocAfter - feederAllocBefore;
+        long aggAlloc = aggAllocAfter - aggAllocBefore;
         long gcCountAfter = gcCount();
         long gcTimeAfter = gcTimeMillis();
 
@@ -308,7 +318,7 @@ public final class MarketDataHarness {
         }
         long[] sorted = report(sampleBase, sampleEnd, sent, wallAfter - wallBefore,
                 processed, published,
-                allocAfter - allocBefore,
+                allocAfter - allocBefore, feederAlloc, aggAlloc,
                 gcCountAfter - gcCountBefore,
                 gcTimeAfter - gcTimeBefore);
 
@@ -385,7 +395,8 @@ public final class MarketDataHarness {
     /** Prints the standard report and returns the sorted latency samples. */
     private static long[] report(int sampleBase, int sampleEnd, long sent, long wallNanos,
                               long processed, long published,
-                              long allocBytes, long gcCount, long gcMillis) {
+                              long allocBytes, long feederBytes, long aggBytes,
+                              long gcCount, long gcMillis) {
         // Only the samples the measured window produced: warm-up deliveries sit
         // below sampleBase, and deliveries that happen while this report prints
         // sit above sampleEnd.
@@ -421,10 +432,21 @@ public final class MarketDataHarness {
         System.out.println("--- memory / GC ------------------------------------");
         System.out.printf("allocated           %,d bytes (%.1f MB)%n",
                 allocBytes, allocBytes / (1024.0 * 1024.0));
-        System.out.printf("allocated per quote %,.1f bytes%n",
-                sent == 0 ? 0 : (double) allocBytes / sent);
+        double perQuote = sent == 0 ? 0 : (double) allocBytes / sent;
+        System.out.printf("allocated per quote %,.1f bytes   <-- SPEC rules 5 and 7%n",
+                perQuote);
+        System.out.printf("   feeding thread   %,.1f%n",
+                sent == 0 ? 0 : (double) feederBytes / sent);
+        System.out.printf("   aggregator's own %,.1f%n",
+                sent == 0 ? 0 : (double) aggBytes / sent);
         System.out.printf("gc collections      %d%n", gcCount);
         System.out.printf("gc time             %d ms%n", gcMillis);
+        System.out.printf("%nrule 5 needs under 40.0  -> %s        "
+                        + "rule 7 needs under 16.0  -> %s%n",
+                perQuote < 40.0 ? "PASS" : "FAIL",
+                perQuote < 16.0 ? "PASS" : "FAIL");
+        System.out.println("This is the same measurement SpecChecks makes: the feeding thread");
+        System.out.println("plus every thread the aggregator creates, and nothing else.");
         System.out.println();
         System.out.println("NOTE: on a laptop, VM or shared/containerised box the far tail "
                 + "(p99.9+)");
@@ -881,16 +903,60 @@ public final class MarketDataHarness {
         return sorted[index];
     }
 
-    private static long allocatedBytes() {
+    /**
+     * Thread ids that already existed when the aggregator was built. Anything
+     * created after that is the aggregator's own.
+     */
+    private static java.util.Set<Long> preExistingThreadIds = new java.util.HashSet<>();
+
+    /** The thread that runs the feeding loop, i.e. the LP session thread's stand-in. */
+    private static long feederThreadId;
+
+    private static void snapshotThreads() {
+        preExistingThreadIds = new java.util.HashSet<>();
+        for (long id : ManagementFactory.getThreadMXBean().getAllThreadIds()) {
+            preExistingThreadIds.add(id);
+        }
+        feederThreadId = Thread.currentThread().getId();
+        preExistingThreadIds.remove(feederThreadId);
+    }
+
+    /**
+     * Bytes allocated by the feeding thread only.
+     *
+     * <p>This and {@link #aggregatorAllocatedBytes()} together use exactly the
+     * same attribution as SpecChecks rules 5 and 7: the feeding thread plus every
+     * thread the aggregator creates, and nothing else. Summing every thread in
+     * the JVM would fold in JIT, GC and monitoring threads, which would report
+     * tens of bytes per quote for an aggregator that allocates nothing.
+     */
+    private static long feederAllocatedBytes() {
+        return allocatedBytes(new long[]{feederThreadId});
+    }
+
+    /** Bytes allocated by every thread that did not exist before the aggregator. */
+    private static long aggregatorAllocatedBytes() {
+        long[] all = ManagementFactory.getThreadMXBean().getAllThreadIds();
+        long[] owned = new long[all.length];
+        int n = 0;
+        for (long id : all) {
+            if (id != feederThreadId && !preExistingThreadIds.contains(id)) {
+                owned[n++] = id;
+            }
+        }
+        long[] ids = new long[n];
+        System.arraycopy(owned, 0, ids, 0, n);
+        return allocatedBytes(ids);
+    }
+
+    private static long allocatedBytes(long[] ids) {
         java.lang.management.ThreadMXBean base = ManagementFactory.getThreadMXBean();
-        if (!(base instanceof com.sun.management.ThreadMXBean)) {
+        if (!(base instanceof com.sun.management.ThreadMXBean) || ids.length == 0) {
             return 0L;
         }
         com.sun.management.ThreadMXBean bean = (com.sun.management.ThreadMXBean) base;
-        long[] ids = base.getAllThreadIds();
-        long[] bytes = bean.getThreadAllocatedBytes(ids);
         long total = 0L;
-        for (long b : bytes) {
+        for (long b : bean.getThreadAllocatedBytes(ids)) {
             if (b > 0) {
                 total += b;
             }
