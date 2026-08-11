@@ -20,13 +20,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  *   - ~200,000 quotes/sec steady state; bursts over 1,000,000/sec on news.
  *   - Stalling is not acceptable: a stalled aggregator means we show clients
  *     stale prices and we get filled on them.
- *
- * This class has been in production for six years. Open tickets against it:
- *   PLAT-4412  "Latency spikes to 40ms+ several times a minute under load"
- *   PLAT-4587  "Best bid occasionally goes backwards / shows a withdrawn price"
- *   PLAT-4601  "Service sometimes does not shut down, has to be kill -9'd"
  */
 public class PriceAggregator implements PriceAggregatorApi {
+
+    /** How long a quote stays live, in event time. See SPEC.md rule 2. */
+    static final long QUOTE_TTL_NANOS = 2_000_000_000L;
 
     private static final boolean DEBUG = false;
 

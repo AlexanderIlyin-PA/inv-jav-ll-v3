@@ -20,3 +20,7 @@ Thumbs.db
 
 # Safety net: the reference solution must never be committed to this repo.
 **/PriceAggregatorFixed.java
+
+# Harness run-to-run comparison state (machine-written, safe to delete)
+.harness-last
+.harness-last.tmp

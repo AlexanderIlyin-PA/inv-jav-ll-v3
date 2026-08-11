@@ -1,81 +1,65 @@
 # Market data aggregator
 
-A Gradle project. JDK 17 or newer is the only prerequisite.
+`PriceAggregator` consolidates quotes from several liquidity providers into a
+top-of-book per symbol and publishes it downstream. It runs at ~200,000 quotes/sec
+in production and it is not behaving.
+
+**Start by taking a measurement:**
 
 ```bash
-./gradlew test
+./gradlew harness      # latency percentiles, bytes allocated per quote, GC counts
+./gradlew spec         # the spec checks: 5 core, 2 stretch
 ```
 
-You should see **1 of 7 core tests passing**. Getting the rest green is the exercise.
+Every later harness run prints how the numbers moved since the previous one.
 
-You can also open the folder in IntelliJ or VS Code — it imports as a standard
-Gradle project, and you can run the tests from the gutter.
-
----
-
-## The task
-
-`PriceAggregator` consolidates quotes from several liquidity providers into a
-top-of-book per symbol and publishes it downstream. It has been in production for
-six years. Three tickets are open against it:
-
-- **PLAT-4412** — latency spikes to 40 ms+ several times a minute under load
-- **PLAT-4587** — best bid occasionally goes backwards, or shows a withdrawn price
-- **PLAT-4601** — the service sometimes will not shut down and has to be `kill -9`'d
-
-**[`SPEC.md`](SPEC.md) says what the correct behaviour is.** The test suite checks
-each rule, one test per rule. Most of them fail.
-
-**Get as many core tests green as you can, without breaking the one that already
-passes.** Two stretch rules wait beyond the core seven.
-
-Some fixes are small and local. Some of them are the same fix — one change to the
-design turns several tests green at once, and spotting that is worth more than
-patching them one at a time. Rule 7 is a performance rule rather than a
-behavioural one, and it will not go green by accident.
-
-Please **think out loud**: how you decide what to do first matters more here than
-how much you finish.
-
-## Layout
+## The work
 
 | Path | What it is |
 |---|---|
-| `SPEC.md` | The behaviour specification. Read this first. |
+| `SPEC.md` | The behaviour specification. **Read this first.** |
 | `src/main/java/etrading/PriceAggregator.java` | **The class under review. This is where the work is.** |
 | `src/main/java/etrading/PriceAggregatorApi.java` | The contract other components depend on — please keep it. |
-| `src/main/java/etrading/Quote.java`, `QuoteListener.java` | Supporting types. |
-| `src/main/java/etrading/SpecChecks.java` | The spec assertions, with no test-framework dependency. |
-| `src/test/java/etrading/SpecTests.java` | JUnit wrapper around those assertions — you should not need to touch it. |
-| `src/main/java/etrading/MarketDataHarness.java` | Optional load generator: latency percentiles, allocation, GC. |
-| `DISRUPTOR_REVIEW.md` | A separate snippet we will discuss at the end. Nothing to run. |
+| `src/main/java/etrading/SpecChecks.java` | The spec as executable checks. Please do not edit. |
+| `src/main/java/etrading/MarketDataHarness.java` | The load generator behind `./gradlew harness`. |
+| `DISRUPTOR_REVIEW.md` | A separate snippet, for discussion. Nothing to run. |
 
-The assertions live in `SpecChecks` rather than in the test class so the spec can
-be run with nothing but a JDK — no Gradle, no network, no JUnit. `SpecTests` only
-names, orders and tags them, so both routes check exactly the same thing.
+Three of the seven rules are behavioural, one is about concurrency and shutdown,
+and two are about allocation. Some fixes are small and local; at least one is a
+design change. **Get as many green as you can**, and please **think out loud** —
+how you decide what to do first matters more than how much you finish.
 
 ## Other commands
 
 ```bash
-./gradlew spec       # same checks, no JUnit and no downloads at all
-./gradlew harness --args="200000 8"    # load generator: latency, allocation, GC
+./gradlew test                          # same checks through JUnit, red/green per rule
+./gradlew harness --args="200000 10"    # rate per second, seconds
+./gradlew harness --args="200000 10 slow"   # plus a deliberately slow listener
 ```
 
-If Gradle cannot reach the network on your machine, `./gradlew spec` still works
-once the Gradle distribution itself is present, and this always works:
+The `slow` token (or `--slow-listener=<microseconds>`, default 200) registers a
+second listener that burns that long in every callback, and reports queue depth,
+what the *fast* listener still sees, and published-versus-offered counts. It only
+reports: nothing there can fail a run.
+
+Each run's headline numbers go into `.harness-last` (git-ignored) so the next run
+can print the movement. Deleting that file only costs you one comparison.
+
+The checks have no test-framework dependency, so if Gradle cannot reach the network
+this always works:
 
 ```bash
 javac -d out $(find src/main -name '*.java')
 java -cp out etrading.SpecChecks
 ```
 
+JDK 17 or newer for the code itself; the Gradle wrapper here is 8.14.3, which needs
+a JDK of 24 or below to *run* — on JDK 25+ either point `JAVA_HOME` at an older JDK
+or use the `javac` route above.
+
 ## A note on the numbers
 
-The harness reports latency percentiles, but on a laptop, VM or container the far
-tail (p99.9 and beyond) is dominated by OS scheduling and JIT rather than by this
-code. **Bytes allocated per quote and GC counts are the reliable signals**, which
-is why the spec is written against allocation rather than latency.
-
-The allocation measurement attributes bytes to the feeding thread plus any thread
-the aggregator creates, and to nothing else, so it is not disturbed by whatever
-else the JVM happens to be doing.
+On a laptop, VM or container the far latency tail (p99.9 and beyond) is dominated
+by OS scheduling and JIT rather than by this code. **Bytes allocated per quote and
+GC counts are the reliable signals**, which is why the spec is written against
+allocation rather than latency.

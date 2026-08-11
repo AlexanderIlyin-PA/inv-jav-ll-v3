@@ -10,8 +10,8 @@ package etrading;
  * <b>never crossed</b>.
  *
  * <p>That last property matters more than it looks. A correct implementation
- * refuses to publish a crossed book (SPEC rule 8), so a feed that produced one
- * would cause a correct aggregator to publish nothing at all — no latency
+ * refuses to publish a crossed book (SPEC rule 6), so a feed that produced one
+ * would cause a correct aggregator to publish nothing at all -- no latency
  * samples, and an allocation measurement that never exercised the publish path.
  */
 final class SyntheticFeed {

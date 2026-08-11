@@ -108,8 +108,15 @@ tasks.register('spec', JavaExec) {
     ignoreExitValue = true
 }
 
-// Optional load generator: latency percentiles, allocation and GC.
-//   ./gradlew harness --args="PriceAggregator 200000 8"
+// Optional load generator: latency percentiles, allocation and GC, plus how
+// each number moved since the previous run.
+//   ./gradlew harness                                  // defaults: 200000/s, 10s
+//   ./gradlew harness --args="200000 8"                 // rate per second, seconds
+//   ./gradlew harness --args="200000 8 slow"            // add a slow listener
+//   ./gradlew harness --args="200000 8 --slow-listener=200"   // burn, microseconds
+// Arguments are [quotesPerSecond] [seconds] [slow|--slow-listener=<micros>].
+// There is no implementation-name argument: an older harness selected the class
+// by name, this one always runs etrading.PriceAggregator.
 tasks.register('harness', JavaExec) {
     group = 'verification'
     description = 'Replays a synthetic market data feed and reports latency and allocation.'

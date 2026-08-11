@@ -23,72 +23,56 @@ class SpecTests {
     @Test
     @Order(1)
     @Tag("core")
-    @DisplayName("CORE 1: best bid is the highest bid across all LPs")
-    void bestBidIsHighestAcrossLps() throws Exception {
-        SpecChecks.bestBidIsHighestAcrossLps();
+    @DisplayName("CORE 1: the published top of book is correct")
+    void publishedTopOfBookIsCorrect() throws Exception {
+        SpecChecks.publishedTopOfBookIsCorrect();
     }
 
     @Test
     @Order(2)
     @Tag("core")
-    @DisplayName("CORE 2: best ask is the lowest ask across all LPs")
-    void bestAskIsLowestAcrossLps() throws Exception {
-        SpecChecks.bestAskIsLowestAcrossLps();
+    @DisplayName("CORE 2: quotes that must not count are excluded")
+    void quotesThatMustNotCountAreExcluded() throws Exception {
+        SpecChecks.quotesThatMustNotCountAreExcluded();
     }
 
     @Test
     @Order(3)
     @Tag("core")
-    @DisplayName("CORE 3: out-of-order quotes are ignored")
-    void outOfOrderQuotesAreIgnored() throws Exception {
-        SpecChecks.outOfOrderQuotesAreIgnored();
+    @DisplayName("CORE 3: an update is published exactly when top of book changes")
+    void publishesExactlyWhenTopOfBookChanges() throws Exception {
+        SpecChecks.publishesExactlyWhenTopOfBookChanges();
     }
 
     @Test
     @Order(4)
     @Tag("core")
-    @DisplayName("CORE 4: stale quotes expire out of top of book")
-    void staleQuotesExpire() throws Exception {
-        SpecChecks.staleQuotesExpire();
+    @DisplayName("CORE 4: safe under concurrent producers and consumers, and it stops")
+    void safeUnderConcurrentProducersAndConsumers() throws Exception {
+        SpecChecks.safeUnderConcurrentProducersAndConsumers();
     }
 
     @Test
     @Order(5)
     @Tag("core")
-    @DisplayName("CORE 5: updates are published only when top of book changes")
-    void publishesOnlyWhenTopOfBookChanges() throws Exception {
-        SpecChecks.publishesOnlyWhenTopOfBookChanges();
+    @DisplayName("CORE 5: hot path allocates under 40 bytes per quote")
+    void hotPathAllocatesUnder40BytesPerQuote() throws Exception {
+        SpecChecks.hotPathAllocatesUnder40BytesPerQuote();
     }
 
     @Test
     @Order(6)
-    @Tag("core")
-    @DisplayName("CORE 6: stop() terminates the worker thread")
-    void stopTerminatesTheWorkerThread() throws Exception {
-        SpecChecks.stopTerminatesTheWorkerThread();
+    @Tag("stretch")
+    @DisplayName("STRETCH 6: a crossed book is never published")
+    void crossedBookIsNeverPublished() throws Exception {
+        SpecChecks.crossedBookIsNeverPublished();
     }
 
     @Test
     @Order(7)
-    @Tag("core")
-    @DisplayName("CORE 7: hot path allocates under 64 bytes per quote")
-    void hotPathAllocatesUnder64BytesPerQuote() throws Exception {
-        SpecChecks.hotPathAllocatesUnder64BytesPerQuote();
-    }
-
-    @Test
-    @Order(8)
     @Tag("stretch")
-    @DisplayName("STRETCH 8: a crossed book is detected and not published")
-    void crossedBookIsDetectedAndNotPublished() throws Exception {
-        SpecChecks.crossedBookIsDetectedAndNotPublished();
-    }
-
-    @Test
-    @Order(9)
-    @Tag("stretch")
-    @DisplayName("STRETCH 9: hot path allocates essentially nothing")
-    void hotPathAllocatesEssentiallyNothing() throws Exception {
-        SpecChecks.hotPathAllocatesEssentiallyNothing();
+    @DisplayName("STRETCH 7: hot path allocates almost nothing (under 16 bytes/quote)")
+    void hotPathAllocatesAlmostNothing() throws Exception {
+        SpecChecks.hotPathAllocatesAlmostNothing();
     }
 }
