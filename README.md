@@ -23,7 +23,6 @@ Every later harness run prints how the numbers moved since the previous one.
 | `src/main/java/etrading/PriceAggregatorApi.java` | The contract other components depend on — please keep it. |
 | `src/test/java/etrading/SpecChecks.java` | The spec as executable checks. You should not need to open it, and please do not edit it. |
 | `src/main/java/etrading/MarketDataHarness.java` | The load generator behind `./gradlew harness`. |
-| `DISRUPTOR_REVIEW.md` | A separate snippet, for discussion. Nothing to run. |
 
 Four of the seven rules are behavioural, one is about concurrency and shutdown,
 and two are about allocation. Some fixes are small and local; at least one is a
