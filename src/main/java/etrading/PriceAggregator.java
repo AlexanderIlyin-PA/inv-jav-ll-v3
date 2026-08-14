@@ -95,14 +95,16 @@ public class PriceAggregator implements PriceAggregatorApi {
                 + " best bid " + best.getBid() + " from " + best.getLp()
                 + " (" + perLp.size() + " LPs quoting)");
 
-        publish(best);
+        publish(best.getSymbol(), best.getBid(), best.getAsk(),
+                best.getTimestampNanos());
     }
 
-    private synchronized void publish(Quote best) {
+    /** Sends one top-of-book update downstream. Takes the pair, not a quote. */
+    private synchronized void publish(String symbol, double bestBid, double bestAsk,
+                                      long eventTsNanos) {
         quotesPublished++;
         for (QuoteListener listener : listeners) {
-            listener.onBest(best.getSymbol(), best.getBid(), best.getAsk(),
-                    best.getTimestampNanos());
+            listener.onBest(symbol, bestBid, bestAsk, eventTsNanos);
         }
     }
 
@@ -133,13 +135,13 @@ public class PriceAggregator implements PriceAggregatorApi {
         if (perLp == null) {
             return Double.NaN;
         }
-        double best = Double.NEGATIVE_INFINITY;
+        double best = Double.POSITIVE_INFINITY;
         for (Quote q : perLp.values()) {
-            if (q.getAsk() > best) {
+            if (q.getAsk() < best) {
                 best = q.getAsk();
             }
         }
-        return best == Double.NEGATIVE_INFINITY ? Double.NaN : best;
+        return best == Double.POSITIVE_INFINITY ? Double.NaN : best;
     }
 
     @Override

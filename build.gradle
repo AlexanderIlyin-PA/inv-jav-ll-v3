@@ -100,10 +100,23 @@ test {
 
 // Run the spec with no dependencies at all - useful if you cannot reach
 // Maven Central, or if you just want the plain console report.
+//
+// SpecChecks lives in src/test/java but has no test-framework dependency, so it
+// is compiled on its own here, against main only. That keeps ./gradlew spec
+// working with no network even though the JUnit route needs Maven Central.
+def specClassesDir = layout.buildDirectory.dir('spec-classes')
+
+tasks.register('compileSpec', JavaCompile) {
+    source = files('src/test/java/etrading/SpecChecks.java')
+    classpath = sourceSets.main.runtimeClasspath
+    destinationDirectory = specClassesDir
+}
+
 tasks.register('spec', JavaExec) {
     group = 'verification'
     description = 'Runs SPEC.md checks directly, without JUnit.'
-    classpath = sourceSets.main.runtimeClasspath
+    dependsOn 'compileSpec'
+    classpath = sourceSets.main.runtimeClasspath + files(specClassesDir)
     mainClass = 'etrading.SpecChecks'
     ignoreExitValue = true
 }

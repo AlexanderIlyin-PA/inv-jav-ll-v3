@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -381,11 +382,11 @@ public final class MarketDataHarness {
      */
     private static void printStoppedEarly(long intended, long sent) {
         System.out.println(heading("stopped feeding early"));
-        System.out.printf("The inbound backlog reached %,d quotes after %,d of %,d%n",
+        System.out.printf(Locale.ROOT, "The inbound backlog reached %,d quotes after %,d of %,d%n",
                 stoppedEarlyDepth, sent, intended);
-        System.out.printf("offered, which is this harness's safety ceiling of %,d for a%n",
+        System.out.printf(Locale.ROOT, "offered, which is this harness's safety ceiling of %,d for a%n",
                 backlogCeiling);
-        System.out.printf("%,d MB heap. The aggregator is not keeping up and its queue is%n",
+        System.out.printf(Locale.ROOT, "%,d MB heap. The aggregator is not keeping up and its queue is%n",
                 Runtime.getRuntime().maxMemory() / (1024L * 1024L));
         System.out.println("unbounded, so feeding on would have exhausted the heap. Every");
         System.out.println("number below is over the quotes that were actually offered.");
@@ -406,42 +407,42 @@ public final class MarketDataHarness {
         double wallSeconds = wallNanos / 1e9d;
 
         System.out.println("--- throughput -------------------------------------");
-        System.out.printf("quotes offered      %,d in %.2fs (%,.0f/s)%n",
+        System.out.printf(Locale.ROOT, "quotes offered      %,d in %.2fs (%,.0f/s)%n",
                 sent, wallSeconds, sent / wallSeconds);
-        System.out.printf("quotes processed    %,d%n", processed);
-        System.out.printf("updates published   %,d%n", published);
-        System.out.printf("backlog at end      %,d%n", sent - processed);
+        System.out.printf(Locale.ROOT, "quotes processed    %,d%n", processed);
+        System.out.printf(Locale.ROOT, "updates published   %,d%n", published);
+        System.out.printf(Locale.ROOT, "backlog at end      %,d%n", sent - processed);
         System.out.println();
 
         System.out.println("--- aggregator latency (microseconds) --------------");
-        System.out.printf("samples             %,d%n", used.length);
+        System.out.printf(Locale.ROOT, "samples             %,d%n", used.length);
         if (used.length == 0) {
             System.out.println("NO LATENCY SAMPLES: nothing was published, so the figures below");
             System.out.println("are zero for lack of data, not because anything was fast.");
         }
-        System.out.printf("p50                 %10.1f%n", micros(percentile(used, 50.0)));
-        System.out.printf("p90                 %10.1f%n", micros(percentile(used, 90.0)));
-        System.out.printf("p99                 %10.1f%n", micros(percentile(used, 99.0)));
-        System.out.printf("p99.9               %10.1f   <-- SLA: under 50%n",
+        System.out.printf(Locale.ROOT, "p50                 %10.1f%n", micros(percentile(used, 50.0)));
+        System.out.printf(Locale.ROOT, "p90                 %10.1f%n", micros(percentile(used, 90.0)));
+        System.out.printf(Locale.ROOT, "p99                 %10.1f%n", micros(percentile(used, 99.0)));
+        System.out.printf(Locale.ROOT, "p99.9               %10.1f   <-- SLA: under 50%n",
                 micros(percentile(used, 99.9)));
-        System.out.printf("p99.99              %10.1f%n", micros(percentile(used, 99.99)));
-        System.out.printf("max                 %10.1f%n",
+        System.out.printf(Locale.ROOT, "p99.99              %10.1f%n", micros(percentile(used, 99.99)));
+        System.out.printf(Locale.ROOT, "max                 %10.1f%n",
                 micros(used.length == 0 ? 0 : used[used.length - 1]));
         System.out.println();
 
         System.out.println("--- memory / GC ------------------------------------");
-        System.out.printf("allocated           %,d bytes (%.1f MB)%n",
+        System.out.printf(Locale.ROOT, "allocated           %,d bytes (%.1f MB)%n",
                 allocBytes, allocBytes / (1024.0 * 1024.0));
         double perQuote = sent == 0 ? 0 : (double) allocBytes / sent;
-        System.out.printf("allocated per quote %,.1f bytes   <-- SPEC rules 5 and 7%n",
+        System.out.printf(Locale.ROOT, "allocated per quote %,.1f bytes   <-- SPEC rules 5 and 7%n",
                 perQuote);
-        System.out.printf("   feeding thread   %,.1f%n",
+        System.out.printf(Locale.ROOT, "   feeding thread   %,.1f%n",
                 sent == 0 ? 0 : (double) feederBytes / sent);
-        System.out.printf("   aggregator's own %,.1f%n",
+        System.out.printf(Locale.ROOT, "   aggregator's own %,.1f%n",
                 sent == 0 ? 0 : (double) aggBytes / sent);
-        System.out.printf("gc collections      %d%n", gcCount);
-        System.out.printf("gc time             %d ms%n", gcMillis);
-        System.out.printf("%nrule 5 needs under 40.0  -> %s        "
+        System.out.printf(Locale.ROOT, "gc collections      %d%n", gcCount);
+        System.out.printf(Locale.ROOT, "gc time             %d ms%n", gcMillis);
+        System.out.printf(Locale.ROOT, "%nrule 5 needs under 40.0  -> %s        "
                         + "rule 7 needs under 16.0  -> %s%n",
                 perQuote < 40.0 ? "PASS" : "FAIL",
                 perQuote < 16.0 ? "PASS" : "FAIL");
@@ -467,13 +468,13 @@ public final class MarketDataHarness {
                                            long published, long slowDeliveries) {
         System.out.println(heading("slow listener (" + (slowBurnNanos / 1000L)
                 + "us per callback)"));
-        System.out.printf("slow callbacks      %,d%n", slowDeliveries);
-        System.out.printf("quotes offered      %,d%n", sent);
-        System.out.printf("quotes processed    %,d%n", processed);
-        System.out.printf("updates published   %,d%n", published);
-        System.out.printf("offered - published %,d%n", sent - published);
+        System.out.printf(Locale.ROOT, "slow callbacks      %,d%n", slowDeliveries);
+        System.out.printf(Locale.ROOT, "quotes offered      %,d%n", sent);
+        System.out.printf(Locale.ROOT, "quotes processed    %,d%n", processed);
+        System.out.printf(Locale.ROOT, "updates published   %,d%n", published);
+        System.out.printf(Locale.ROOT, "offered - published %,d%n", sent - published);
         if (sent > 0) {
-            System.out.printf("published / offered %.1f%%%n", 100.0d * published / sent);
+            System.out.printf(Locale.ROOT, "published / offered %.1f%%%n", 100.0d * published / sent);
         }
         if (published == 0) {
             System.out.println("nothing was published, so the slow listener was never called and");
@@ -491,7 +492,7 @@ public final class MarketDataHarness {
                 + " quotes. It is an upper");
         System.out.println("  bound on the real inbound queue (it also counts the quote in "
                 + "flight)");
-        System.out.printf("  and it includes the %,d quotes still queued when warm-up "
+        System.out.printf(Locale.ROOT, "  and it includes the %,d quotes still queued when warm-up "
                 + "ended.%n", depthOffset);
         if (depthSampleCount == 0) {
             System.out.println("  NO DEPTH SAMPLES: the run was too short to take one.");
@@ -506,12 +507,12 @@ public final class MarketDataHarness {
             long first = depths[0];
             long last = depths[depthSampleCount - 1];
             Arrays.sort(depths);
-            System.out.printf("  samples           %,d%n", depths.length);
-            System.out.printf("  depth at start    %,d%n", first);
-            System.out.printf("  depth at end      %,d%n", last);
-            System.out.printf("  median depth      %,d%n", percentile(depths, 50.0));
-            System.out.printf("  p90 depth         %,d%n", percentile(depths, 90.0));
-            System.out.printf("  max depth         %,d%n", depths[depths.length - 1]);
+            System.out.printf(Locale.ROOT, "  samples           %,d%n", depths.length);
+            System.out.printf(Locale.ROOT, "  depth at start    %,d%n", first);
+            System.out.printf(Locale.ROOT, "  depth at end      %,d%n", last);
+            System.out.printf(Locale.ROOT, "  median depth      %,d%n", percentile(depths, 50.0));
+            System.out.printf(Locale.ROOT, "  p90 depth         %,d%n", percentile(depths, 90.0));
+            System.out.printf(Locale.ROOT, "  max depth         %,d%n", depths[depths.length - 1]);
             printDepthTimeline();
         }
         System.out.println();
@@ -521,11 +522,11 @@ public final class MarketDataHarness {
             System.out.println("  NO SAMPLES: the fast listener was never called, so there is");
             System.out.println("  nothing to report - not even a fast zero.");
         } else {
-            System.out.printf("  samples           %,d%n", sorted.length);
-            System.out.printf("  p50               %,.1f%n", micros(percentile(sorted, 50.0)));
-            System.out.printf("  p90               %,.1f%n", micros(percentile(sorted, 90.0)));
-            System.out.printf("  p99               %,.1f%n", micros(percentile(sorted, 99.0)));
-            System.out.printf("  max               %,.1f%n",
+            System.out.printf(Locale.ROOT, "  samples           %,d%n", sorted.length);
+            System.out.printf(Locale.ROOT, "  p50               %,.1f%n", micros(percentile(sorted, 50.0)));
+            System.out.printf(Locale.ROOT, "  p90               %,.1f%n", micros(percentile(sorted, 90.0)));
+            System.out.printf(Locale.ROOT, "  p99               %,.1f%n", micros(percentile(sorted, 99.0)));
+            System.out.printf(Locale.ROOT, "  max               %,.1f%n",
                     micros(sorted[sorted.length - 1]));
             System.out.println("  The fast listener is registered first, so this is what a "
                     + "well-behaved");
@@ -585,14 +586,14 @@ public final class MarketDataHarness {
         state.put("processed", Long.toString(processed));
         state.put("published", Long.toString(published));
         state.put("allocBytes", Long.toString(allocBytes));
-        state.put("bytesPerQuote", String.format("%.1f", sent == 0
+        state.put("bytesPerQuote", String.format(Locale.ROOT, "%.1f", sent == 0
                 ? 0.0d : (double) allocBytes / sent));
         state.put("gcCount", Long.toString(gcCount));
         state.put("gcMillis", Long.toString(gcMillis));
         state.put("samples", Integer.toString(sorted.length));
-        state.put("p50Micros", String.format("%.1f", micros(percentile(sorted, 50.0))));
-        state.put("p90Micros", String.format("%.1f", micros(percentile(sorted, 90.0))));
-        state.put("p99Micros", String.format("%.1f", micros(percentile(sorted, 99.0))));
+        state.put("p50Micros", String.format(Locale.ROOT, "%.1f", micros(percentile(sorted, 50.0))));
+        state.put("p90Micros", String.format(Locale.ROOT, "%.1f", micros(percentile(sorted, 90.0))));
+        state.put("p99Micros", String.format(Locale.ROOT, "%.1f", micros(percentile(sorted, 99.0))));
         return state;
     }
 
@@ -646,7 +647,7 @@ public final class MarketDataHarness {
         Double after = parseNumber(now.get(key));
         String afterText = after == null ? "n/a" : format(after, decimals);
         if (before == null || after == null) {
-            System.out.printf("%-16s %13s -> %13s  (%s)%n", label,
+            System.out.printf(Locale.ROOT, "%-16s %13s -> %13s  (%s)%n", label,
                     before == null ? "n/a" : format(before, decimals), afterText,
                     "no comparison");
             return;
@@ -655,23 +656,55 @@ public final class MarketDataHarness {
         String deltaText = Math.abs(delta) < 1e-9
                 ? "unchanged"
                 : (delta > 0 ? "+" : "-") + format(Math.abs(delta), decimals);
-        System.out.printf("%-16s %13s -> %13s  (%s)%n", label,
+        System.out.printf(Locale.ROOT, "%-16s %13s -> %13s  (%s)%n", label,
                 format(before, decimals), afterText, deltaText);
     }
 
     private static String format(double value, int decimals) {
         if (decimals <= 0) {
-            return String.format("%,d", Math.round(value));
+            return String.format(Locale.ROOT, "%,d", Math.round(value));
         }
-        return String.format("%,." + decimals + "f", value);
+        return String.format(Locale.ROOT, "%,." + decimals + "f", value);
     }
 
     private static Double parseNumber(String text) {
         if (text == null) {
             return null;
         }
+        // A state file written by an older build used the default locale, so it
+        // may carry "409,5" or "1 204,9" with a space or non-breaking space as the
+        // grouping separator. This file is also decoded as ISO-8859-1 so that
+        // binary junk cannot throw, which turns a UTF-8 non-breaking space into
+        // two characters. So keep only what can belong to a number and throw the
+        // rest away, rather than listing separators to strip.
+        StringBuilder digits = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c >= '0' && c <= '9') {
+                digits.append(c);
+            } else if (c == '.' || c == ',') {
+                digits.append(c);
+            } else if ((c == '-' || c == '+') && digits.length() == 0) {
+                digits.append(c);
+            }
+        }
+        String cleaned = digits.toString();
+        if (cleaned.indexOf(',') >= 0 && cleaned.indexOf('.') < 0) {
+            // One or two digits after the last comma means it was the decimal
+            // separator; three means it was grouping.
+            int last = cleaned.lastIndexOf(',');
+            int trailing = cleaned.length() - last - 1;
+            if (trailing == 1 || trailing == 2) {
+                cleaned = cleaned.substring(0, last).replace(",", "")
+                        + "." + cleaned.substring(last + 1);
+            } else {
+                cleaned = cleaned.replace(",", "");
+            }
+        } else {
+            cleaned = cleaned.replace(",", "");
+        }
         try {
-            double d = Double.parseDouble(text.trim());
+            double d = Double.parseDouble(cleaned);
             if (Double.isNaN(d) || Double.isInfinite(d)) {
                 return null;
             }
