@@ -1,7 +1,6 @@
 package part1.fuel;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,15 +13,9 @@ import java.util.Map;
  * <p>See part 1 of SPEC-part1.md for the behaviour this class is supposed to
  * implement. It currently gets most of it wrong.
  *
- * <p>PRODUCTION CONTEXT
- * <ul>
- *   <li>Stations push prices over a webhook; the HTTP layer calls
- *       {@link #onReport} and there is exactly one such caller, so this class is
- *       single-threaded by construction. It does not need a queue, a worker or a
- *       lifecycle, and adding one would be a step backwards.</li>
- *   <li>The forecourt map reads the getters between calls; a wrong price shown to
- *       a driver is a wrong price they drive across town for.</li>
- * </ul>
+ * <p>Stations push prices over a webhook and the HTTP layer calls
+ * {@link #onReport}. The forecourt map reads the getters between calls: a wrong
+ * price shown to a driver is a wrong price they drive across town for.
  */
 public class PriceBoard implements PriceBoardApi {
 
@@ -31,8 +24,6 @@ public class PriceBoard implements PriceBoardApi {
      * See part 1 rule 3 in SPEC-part1.md.
      */
     static final long REPORT_TTL_MILLIS = 60L * 60_000L;
-
-    private static final boolean DEBUG = false;
 
     /** area -&gt; (station -&gt; that station's most recent report) */
     private final Map<String, Map<String, StationReport>> board = new HashMap<>();
@@ -68,13 +59,8 @@ public class PriceBoard implements PriceBoardApi {
             }
         }
 
-        log(String.format("[%tT] %s cheapest %.3f petrol / %.3f diesel from %s "
-                        + "(%d stations reporting)",
-                new Date(), area, cheapest.getPetrol(), cheapest.getDiesel(),
-                cheapest.getStation(), perStation.size()));
-
-        publish(cheapest.getArea(), cheapest.getPetrol(), cheapest.getDiesel(),
-                cheapest.getTimestamp());
+        publish(area, cheapest.getPetrol(), cheapest.getDiesel(), timestamp);
+        // ^ both halves of the published pair come off one report
     }
 
     /** Sends one cheapest-price update downstream. Takes the pair, not a report. */
@@ -83,12 +69,6 @@ public class PriceBoard implements PriceBoardApi {
         updatesPublished++;
         for (PriceListener listener : listeners) {
             listener.onBest(area, cheapestPetrol, cheapestDiesel, timestamp);
-        }
-    }
-
-    private void log(String message) {
-        if (DEBUG) {
-            System.out.println(message);
         }
     }
 
@@ -113,13 +93,13 @@ public class PriceBoard implements PriceBoardApi {
         if (perStation == null) {
             return Double.NaN;
         }
-        StationReport cheapest = null;
+        double cheapest = Double.POSITIVE_INFINITY;
         for (StationReport report : perStation.values()) {
-            if (cheapest == null || report.getPetrol() < cheapest.getPetrol()) {
-                cheapest = report;
+            if (report.getDiesel() < cheapest) {
+                cheapest = report.getDiesel();
             }
         }
-        return cheapest == null ? Double.NaN : cheapest.getDiesel();
+        return cheapest == Double.POSITIVE_INFINITY ? Double.NaN : cheapest;
     }
 
     @Override
