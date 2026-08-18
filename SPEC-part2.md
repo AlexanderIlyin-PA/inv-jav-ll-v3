@@ -8,26 +8,8 @@ Reported from production: totals that do not add up, accounts that go missing, t
 occasional duplicate account, request threads that stop responding under load, and
 deploys that time out.
 
-The contract to preserve:
-
-```java
-public interface AccountServiceApi {
-    /** Returns the account for this id, creating it once if absent. */
-    Account getOrCreate(String id);
-    void credit(String id, long amount);
-    void transfer(String fromId, String toId, long amount);
-    long getBalance(String id);
-    int getAccountCount();
-    /** Total credit and transfer operations applied. */
-    long getOperationCount();
-    void start();
-    void stop();
-    boolean isRunning();
-}
-```
-
-`Account` holds a construction counter and a hook that rule 3's check uses. Leave
-those and the two calls in the constructor as they are.
+Everything you need to change is in `AccountService` — the rest of the package can
+stay as it is.
 
 The failure messages carry the evidence: what was observed against what was
 required, and for rule 4 the two threads' stacks plus the JVM's own view of which
@@ -58,10 +40,6 @@ winning a race.
 Expected: **exactly one** `Account` constructed, and every caller gets **the same
 instance**.
 
-The lookup and the create need to be a single operation — `computeIfAbsent` is one,
-while `putIfAbsent(id, new Account(id))` constructs before it knows whether it needs
-to.
-
 ### 4. Transfers run in both directions
 
 Two threads, one moving `ACC-A` → `ACC-B` and the other `ACC-B` → `ACC-A`, 20 000
@@ -77,17 +55,6 @@ Expected: `isRunning()` is true while it runs, `stop()` returns **within 250 ms*
 and `isRunning()` becomes false **within a further second**. The background thread
 is signalled and `stop()` returns; it does not wait for the thread. No non-daemon
 thread outlives it.
-
----
-
-## What the five checks cover
-
-Atomicity (1), publication into a shared structure (2), check-then-act (3), lock
-ordering (4), shutdown (5).
-
-**Visibility is discussed rather than asserted.** A stale read cannot be made to
-fail deterministically in a portable check, so all green here is not evidence that
-your visibility is sound — expect to talk about it.
 
 ---
 
