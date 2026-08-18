@@ -1,4 +1,4 @@
-package etrading;
+package part3.etrading;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -14,17 +14,20 @@ import java.util.concurrent.LinkedBlockingQueue;
  * top-of-book view per symbol, and publishes the best price downstream
  * (pricing engine, client-facing API, risk).
  *
- * See SPEC.md for the behaviour this class is supposed to implement.
+ * <p>See part 3 of SPEC-part3.md for what is being asked of this class. Part 3 is
+ * about one thing only: <b>how much this hot path allocates per quote</b>.
+ * Nothing else here is graded, so do not spend the time on the aggregation
+ * logic.
  *
- * PRODUCTION CONTEXT
- *   - ~200,000 quotes/sec steady state; bursts over 1,000,000/sec on news.
- *   - Stalling is not acceptable: a stalled aggregator means we show clients
- *     stale prices and we get filled on them.
+ * <p>PRODUCTION CONTEXT
+ * <ul>
+ *   <li>~200,000 quotes/sec steady state; bursts over 1,000,000/sec on news.</li>
+ *   <li>The pauses show up as GC, and the GC is fed from here.</li>
+ *   <li>Stalling is not acceptable: a stalled aggregator means we show clients
+ *       stale prices and we get filled on them.</li>
+ * </ul>
  */
 public class PriceAggregator implements PriceAggregatorApi {
-
-    /** How long a quote stays live, in event time. See SPEC.md rule 2. */
-    static final long QUOTE_TTL_NANOS = 2_000_000_000L;
 
     private static final boolean DEBUG = false;
 
@@ -65,6 +68,7 @@ public class PriceAggregator implements PriceAggregatorApi {
                 }
             }
         });
+        worker.setDaemon(true);
         worker.start();
     }
 
@@ -142,11 +146,6 @@ public class PriceAggregator implements PriceAggregatorApi {
             }
         }
         return best == Double.POSITIVE_INFINITY ? Double.NaN : best;
-    }
-
-    @Override
-    public boolean isCrossed(String symbol) {
-        return getBestBid(symbol) >= getBestAsk(symbol);
     }
 
     @Override

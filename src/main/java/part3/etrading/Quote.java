@@ -1,4 +1,4 @@
-package etrading;
+package part3.etrading;
 
 /**
  * A single quote from a single liquidity provider for a single symbol.

@@ -1,37 +1,57 @@
-# Market data aggregator
+# Three independent exercises
 
-`PriceAggregator` consolidates quotes from several liquidity providers into a
-top-of-book per symbol and publishes it downstream. It runs at ~200,000 quotes/sec
-in production and it is not behaving.
+Three separate exercises in three separate packages, with **no shared code** — you
+can work on them in any order, and finishing one has no bearing on the others.
+You may have been asked for only one of them.
 
-**Start by taking a measurement:**
+| Part | What it is about | Specification | Run it |
+|---|---|---|---|
+| 1 | A fuel-price board | `SPEC-part1.md` | `./gradlew part1` |
+| 2 | Concurrency and diagnosis: an account service | `SPEC-part2.md` | `./gradlew part2` |
+| 3 | Allocation on a hot path: a market-data aggregator | `SPEC-part3.md` | `./gradlew part3` |
+
+Read the spec for the part you are working on — it is the arbiter, and each one is a
+page. `./gradlew test` runs all three through JUnit.
+
+## Where the work is
+
+| Part | The class under review | The checks (please do not edit) |
+|---|---|---|
+| 1 | `src/main/java/part1/fuel/PriceBoard.java` | `src/test/java/part1/fuel/Part1Checks.java` |
+| 2 | `src/main/java/part2/accounts/AccountService.java` | `src/test/java/part2/accounts/Part2Checks.java` |
+| 3 | `src/main/java/part3/etrading/PriceAggregator.java` | `src/test/java/part3/etrading/Part3Checks.java` |
+
+Each part also has a small API interface next to the class under review. **Please
+keep those interfaces as they are** — other components depend on them.
+
+`GLOSSARY.md` is one page of market-data vocabulary and applies to **part 3 only**.
+Parts 1 and 2 need no domain knowledge.
+
+## If Gradle cannot reach the network
+
+The checks have no test-framework dependency, so a JDK on its own is enough. One
+part at a time:
 
 ```bash
-./gradlew harness      # latency percentiles, bytes allocated per quote, GC counts
-./gradlew spec         # the spec checks: 5 core, 2 stretch
+mkdir -p out
+javac -d out $(find src/main/java/part1 src/test/java/part1 -name '*.java')
+java -cp out part1.fuel.Part1Checks
 ```
 
-Every later harness run prints how the numbers moved since the previous one.
+and the same for `part2` / `part2.accounts.Part2Checks` and
+`part3` / `part3.etrading.Part3Checks`. Nothing outside a part's own two
+directories is needed to compile or run it.
 
-## The work
+(The `PartNTests.java` files are the JUnit wrappers and are the only files that
+need JUnit; the `find` above picks them up too, so add `-not -name '*Tests.java'`
+if you have no JUnit on the classpath.)
 
-| Path | What it is |
-|---|---|
-| `SPEC.md` | The behaviour specification. **Read this first.** |
-| `GLOSSARY.md` | One page of market-data vocabulary. Skip it if the domain is familiar. |
-| `src/main/java/etrading/PriceAggregator.java` | **The class under review. This is where the work is.** |
-| `src/main/java/etrading/PriceAggregatorApi.java` | The contract other components depend on — please keep it. |
-| `src/test/java/etrading/SpecChecks.java` | The spec as executable checks. You should not need to open it, and please do not edit it. |
-| `src/main/java/etrading/MarketDataHarness.java` | The load generator behind `./gradlew harness`. |
+## How to approach it
 
-Four of the seven rules are behavioural, one is about concurrency and shutdown,
-and two are about allocation. Some fixes are small and local; at least one is a
-design change. **Get as many green as you can**, and please **think out loud** —
-how you decide what to do first matters more than how much you finish.
+**Get as many checks green as you can**, and please **think out loud** — how you
+decide what to do first matters more than how much you finish. If you think a check
+is wrong, say so; that is a legitimate thing to raise, and the spec is the arbiter.
 
-## A note on the numbers
-
-On a laptop, VM or container the far latency tail (p99.9 and beyond) is dominated
-by OS scheduling and JIT rather than by this code. **Bytes allocated per quote and
-GC counts are the reliable signals**, which is why the spec is written against
-allocation rather than latency.
+The failure messages are meant to be read. Each one says what was expected, what
+was actually observed, and usually why it matters — you should not need to open the
+check files.

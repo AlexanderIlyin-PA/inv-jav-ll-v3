@@ -18,9 +18,13 @@ bin/
 .DS_Store
 Thumbs.db
 
-# Safety net: the reference solution must never be committed to this repo.
-**/PriceAggregatorFixed.java
-
-# Harness run-to-run comparison state (machine-written, safe to delete)
-.harness-last
-.harness-last.tmp
+# Safety net: the reference solutions must never be committed to this repo. They
+# live outside it, in the interviewer's kit, and each one has the same class name
+# as the file it replaces -- so if one is ever dropped in under a different name,
+# or the whole folder is copied in, keep it out of git.
+solution-dropin/
+solution/
+**/*Fixed.java
+**/*-PriceBoard.java
+**/*-AccountService.java
+**/*-PriceAggregator.java

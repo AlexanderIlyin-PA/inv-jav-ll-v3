@@ -1,18 +1,14 @@
-package etrading;
+package part3.etrading;
 
 /**
- * Generates a synthetic quote stream, shared by the spec checks and the load
- * harness.
+ * Generates a synthetic quote stream, used by the part 3 allocation
+ * measurement.
  *
  * <p>Every LP quotes around a common per-symbol mid that walks up and down in
  * small steps, with a fixed half-spread on either side. The LPs' mids stay far
- * closer together than the spread, so the aggregated book is realistic and
- * <b>never crossed</b>.
- *
- * <p>That last property matters more than it looks. A correct implementation
- * refuses to publish a crossed book (SPEC rule 6), so a feed that produced one
- * would cause a correct aggregator to publish nothing at all -- no latency
- * samples, and an allocation measurement that never exercised the publish path.
+ * closer together than the spread, so the aggregated book is realistic and the
+ * top of book keeps moving -- which matters, because the measurement insists
+ * that something was actually published while it was running.
  */
 final class SyntheticFeed {
 

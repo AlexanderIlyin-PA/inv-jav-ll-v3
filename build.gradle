@@ -21,18 +21,24 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+// ---------------------------------------------------------------------------
+// ./gradlew test  -- all three parts through JUnit, one test per rule.
+//
+// The three parts are independent, so the report is printed per part. A part you
+// were not asked to do simply shows as red and can be ignored.
+// ---------------------------------------------------------------------------
 test {
     useJUnitPlatform()
 
-    // The allocation rules measure real numbers: keep the test JVM to itself.
+    // Part 3 measures real allocation numbers: keep the test JVM to itself.
     maxParallelForks = 1
     forkEvery = 0
     outputs.upToDateWhen { false }
 
     testLogging {
-        // All per-test output is produced by the afterTest hook below, so that
-        // the PASS/FAIL line and its assertion message stay together and read
-        // the same as `./gradlew spec`.
+        // All per-test output is produced by the afterTest hook below, so that the
+        // PASS/FAIL line and its assertion message stay together and read the same
+        // as ./gradlew part1.
         events = []
         showStandardStreams = false
         showExceptions = false
@@ -40,8 +46,8 @@ test {
         showStackTraces = false
     }
 
-    // Gradle also reports failures at ERROR level, which would duplicate the
-    // lines printed above. Silence every level; afterTest is the only reporter.
+    // Gradle also reports failures at ERROR level, which would duplicate the lines
+    // printed above. Silence every level; afterTest is the only reporter.
     org.gradle.api.logging.LogLevel.values().each { level ->
         testLogging.get(level).with {
             events = []
@@ -51,88 +57,90 @@ test {
         }
     }
 
-    def core = new java.util.concurrent.atomic.AtomicInteger()
-    def corePassed = new java.util.concurrent.atomic.AtomicInteger()
-    def stretch = new java.util.concurrent.atomic.AtomicInteger()
-    def stretchPassed = new java.util.concurrent.atomic.AtomicInteger()
+    def parts = ['PART1', 'PART2', 'PART3']
+    def total = [:]
+    def passed = [:]
+    parts.each {
+        total[it] = new java.util.concurrent.atomic.AtomicInteger()
+        passed[it] = new java.util.concurrent.atomic.AtomicInteger()
+    }
 
     afterTest { desc, result ->
         String name = desc.displayName ?: desc.name
         boolean ok = result.resultType == TestResult.ResultType.SUCCESS
-        if (name.startsWith('CORE')) {
-            core.incrementAndGet()
-            if (ok) corePassed.incrementAndGet()
-        } else if (name.startsWith('STRETCH')) {
-            stretch.incrementAndGet()
-            if (ok) stretchPassed.incrementAndGet()
+        def part = parts.find { name.startsWith(it) }
+        if (part != null) {
+            total[part].incrementAndGet()
+            if (ok) passed[part].incrementAndGet()
         }
-        println (ok ? "[PASS] ${name}" : "[FAIL] ${name}")
+        println(ok ? "[PASS] ${name}" : "[FAIL] ${name}")
         if (!ok) {
             def ex = result.exceptions ? result.exceptions[0] : null
             String msg = ex?.message ?: ex?.toString()
             if (msg) {
-                msg.readLines().each { println '       ' + it.trim() }
+                msg.readLines().each { println '       ' + it }
             }
         }
     }
 
     afterSuite { desc, result ->
         if (desc.parent != null) return
+        int ran = parts.sum { total[it].get() }
         println ''
         println '----------------------------------------------------------------'
-        println "CORE     ${corePassed.get()} / ${core.get()} passed"
-        println "STRETCH  ${stretchPassed.get()} / ${stretch.get()} passed"
+        parts.eachWithIndex { part, i ->
+            println "PART ${i + 1}   ${passed[part].get()} / ${total[part].get()} passed"
+        }
         println '----------------------------------------------------------------'
-        if (core.get() == 0 && stretch.get() == 0) {
-            println 'NO SPEC TESTS RAN. This is a build or test-discovery problem, not a pass.'
-            println 'Check that src/test/java/etrading/SpecTests.java compiled and that its'
-            println 'display names still start with CORE / STRETCH.'
-        } else if (corePassed.get() < core.get()) {
-            println 'Core rules are still violated. SPEC.md says what each rule requires.'
-        } else if (stretchPassed.get() < stretch.get()) {
-            println 'All core rules satisfied. Stretch rules remain.'
+        if (ran == 0) {
+            println 'NO CHECKS RAN. This is a build or test-discovery problem, not a pass.'
+            println 'Check that the Part1Tests / Part2Tests / Part3Tests classes compiled and'
+            println 'that their display names still start with PART1 / PART2 / PART3.'
+        } else if (parts.every { passed[it].get() == total[it].get() }) {
+            println 'All rules of all three parts satisfied.'
         } else {
-            println 'All rules satisfied.'
+            println 'Rules are still violated. SPEC-part1.md / SPEC-part2.md / SPEC-part3.md says what each rule requires.'
+            println 'The three parts are independent: a part you were not asked to do can be'
+            println 'left red.'
         }
         println ''
     }
 }
 
-// Run the spec with no dependencies at all - useful if you cannot reach
-// Maven Central, or if you just want the plain console report.
+// ---------------------------------------------------------------------------
+// ./gradlew part1 | part2 | part3
 //
-// SpecChecks lives in src/test/java but has no test-framework dependency, so it
-// is compiled on its own here, against main only. That keeps ./gradlew spec
-// working with no network even though the JUnit route needs Maven Central.
-def specClassesDir = layout.buildDirectory.dir('spec-classes')
+// Runs one part's checks with no dependencies at all -- useful if you cannot
+// reach Maven Central, or if you just want the plain console report.
+//
+// Each PartNChecks class lives in src/test/java but has no test-framework
+// dependency, so it is compiled on its own here against main only. That keeps
+// these tasks working with no network even though the JUnit route needs Maven
+// Central. Each part is compiled and run separately: no part's task touches
+// another part's sources.
+// ---------------------------------------------------------------------------
+[
+        [n: 1, pkg: 'part1.fuel', file: 'src/test/java/part1/fuel/Part1Checks.java',
+         what: 'core functionality: a fuel-price board'],
+        [n: 2, pkg: 'part2.accounts', file: 'src/test/java/part2/accounts/Part2Checks.java',
+         what: 'concurrency and diagnosis: an account service'],
+        [n: 3, pkg: 'part3.etrading', file: 'src/test/java/part3/etrading/Part3Checks.java',
+         what: 'allocation on a hot path: a market-data aggregator'],
+].each { part ->
+    def classesDir = layout.buildDirectory.dir("part${part.n}-classes")
 
-tasks.register('compileSpec', JavaCompile) {
-    source = files('src/test/java/etrading/SpecChecks.java')
-    classpath = sourceSets.main.runtimeClasspath
-    destinationDirectory = specClassesDir
-}
+    tasks.register("compilePart${part.n}", JavaCompile) {
+        source = files(part.file)
+        classpath = sourceSets.main.runtimeClasspath
+        destinationDirectory = classesDir
+    }
 
-tasks.register('spec', JavaExec) {
-    group = 'verification'
-    description = 'Runs SPEC.md checks directly, without JUnit.'
-    dependsOn 'compileSpec'
-    classpath = sourceSets.main.runtimeClasspath + files(specClassesDir)
-    mainClass = 'etrading.SpecChecks'
-    ignoreExitValue = true
-}
-
-// Optional load generator: latency percentiles, allocation and GC, plus how
-// each number moved since the previous run.
-//   ./gradlew harness                                  // defaults: 200000/s, 10s
-//   ./gradlew harness --args="200000 8"                 // rate per second, seconds
-//   ./gradlew harness --args="200000 8 slow"            // add a slow listener
-//   ./gradlew harness --args="200000 8 --slow-listener=200"   // burn, microseconds
-// Arguments are [quotesPerSecond] [seconds] [slow|--slow-listener=<micros>].
-// There is no implementation-name argument: an older harness selected the class
-// by name, this one always runs etrading.PriceAggregator.
-tasks.register('harness', JavaExec) {
-    group = 'verification'
-    description = 'Replays a synthetic market data feed and reports latency and allocation.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'etrading.MarketDataHarness'
+    tasks.register("part${part.n}", JavaExec) {
+        group = 'verification'
+        description = "Runs part ${part.n} of SPEC-part1.md / SPEC-part2.md / SPEC-part3.md (${part.what}) without JUnit."
+        dependsOn "compilePart${part.n}"
+        classpath = sourceSets.main.runtimeClasspath + files(classesDir)
+        mainClass = "${part.pkg}.Part${part.n}Checks"
+        ignoreExitValue = true
+    }
 }
