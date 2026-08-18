@@ -185,13 +185,11 @@ public final class Part1Checks {
                 // until it reports again.
                 f.report(AREA, "BP", 1.479, 1.549, T0 + 90 * MINUTE);
                 assertPrice(1.479, f.board.getCheapestPetrol(AREA),
-                        "getCheapestPetrol 90 minutes of event time after Shell's last "
-                                + "report. The newest timestamp for " + AREA + " is now "
-                                + "T0 + 90 min and Shell last reported at T0, which is more "
-                                + "than REPORT_TTL_MILLIS (3600000 ms) of event time "
-                                + "earlier, so Shell has expired and only BP's 1.479 / 1.549 "
-                                + "is live. The TTL is measured against the newest timestamp "
-                                + "for the area, never against the wall clock");
+                        "getCheapestPetrol 90 minutes after Shell's last report. Shell "
+                                + "reported at T0 and the latest report for " + AREA + " is "
+                                + "now T0 + 90 min, so Shell is more than 60 minutes stale "
+                                + "and only BP's 1.479 / 1.549 is live. Ages are measured "
+                                + "between report timestamps, not against the wall clock");
                 assertPrice(1.549, f.board.getCheapestDiesel(AREA),
                         "getCheapestDiesel 90 minutes of event time after Shell's last "
                                 + "report (Shell has expired, so the cheapest live diesel is "

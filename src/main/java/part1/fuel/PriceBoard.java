@@ -25,7 +25,7 @@ public class PriceBoard implements PriceBoardApi {
      */
     static final long REPORT_TTL_MILLIS = 60L * 60_000L;
 
-    /** area -&gt; (station -&gt; that station's most recent report) */
+    /** area ->; (station ->; that station's most recent report) */
     private final Map<String, Map<String, StationReport>> board = new HashMap<>();
 
     private final List<PriceListener> listeners = new ArrayList<>();

@@ -55,14 +55,14 @@ timestamps resolve in arrival order. `getReportsAccepted()` counts the accepted 
 | `Camden Shell 1.699 / 1.799 @ T0 − 5 min` | still 1.459 / 1.539, accepted 1 |
 | `Camden BP    1.439 / 1.549 @ T0 − 30 s` | 1.439 / 1.539, accepted 2 — BP's newest |
 
-### 3. A report stays live for 60 minutes of event time
+### 3. A report stays live for 60 minutes
 
-`REPORT_TTL_MILLIS` is 3 600 000. Take `newest` to be the newest timestamp seen for an
-area: a station counts towards both sides while its last report for that area is
-within the TTL of `newest`, and counts again as soon as it reports.
+A station counts while its last report is no more than 60 minutes older than the most
+recent report for that area (`REPORT_TTL_MILLIS`, 3 600 000). Past that it drops off
+both sides, and it counts again as soon as it reports.
 
-The reference point is `newest` for the area, so if every station goes quiet the
-area's clock stops with them.
+Ages are measured between report timestamps rather than against the wall clock, so an
+area that receives nothing new keeps the prices it has.
 
 | Report in | Expected |
 |---|---|
@@ -73,9 +73,9 @@ area's clock stops with them.
 
 ### 4. An update goes out when the cheapest changes
 
-A change to either side sends exactly one update carrying the new pair. A report that
-leaves both sides where they were is simply stored.
-`getUpdatesPublished()` matches the number of listener callbacks.
+Listeners hear about a change once. When either cheapest price moves they get a single
+update carrying both current prices; when a report moves neither, they get nothing.
+`getUpdatesPublished()` counts the updates sent.
 
 | Report in | Expected |
 |---|---|
